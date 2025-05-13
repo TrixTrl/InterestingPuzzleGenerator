@@ -24,8 +24,6 @@ vector<int> generateEquation(int x, int y, int value);
 void gaussianElimination(vector<vector<int>> *matrix);
 bool runItteration();
 
-void obfuscate_bitmap(unsigned char *bmp, int bits, int decode);
-
 string translation[] = {":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:"};
 
 bool ansiCodes = false;
@@ -181,11 +179,12 @@ bool runItteration()
 {
 	vector<vector<bool>> *board = new vector<vector<bool>>(height, vector<bool>(width));
 	vector<vector<int>> *numbers = new vector<vector<int>>(height);
-	vector<int> knownValues = vector<int>(width * height, -1); //[width * height]{};
-	// fill(knownValues, knownValues + sizeof(int) * width * height, -1);
+	vector<int> knownValues = vector<int>(width * height, -1);
 	vector<vector<int>> equations;
 
 	int placedMines = 0;
+
+	// Start of board generation
 
 	int startX = rand() % width;
 	int startY = rand() % height;
@@ -201,6 +200,7 @@ bool runItteration()
 		}
 	}
 
+	// Elimination of boards with too few mines, TODO: figure out math to make it work well with custom values
 	if (!custom && placedMines < 21)
 	{
 		delete (board);
@@ -210,12 +210,13 @@ bool runItteration()
 
 	int zeros = 0;
 
+	// Filling out numbers while keeping track of total "zero" cells
+
 	for (int i = 0; i < height; i++)
 	{
 		numbers->at(i) = vector<int>(width);
 		for (int j = 0; j < width; j++)
 		{
-			// bitset<width> mask(0b111);
 			int count = 0;
 			if (i > 0)
 			{
@@ -223,8 +224,6 @@ bool runItteration()
 				count += board->at(i - 1).at(j);
 				count += j < width - 1 && board->at(i - 1).at(j + 1);
 			}
-			//	count += (board->at(i - 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
-			//	count += (board->at(i) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
 			count += j > 0 && board->at(i).at(j - 1);
 			count += board->at(i).at(j);
 			count += j < width - 1 && board->at(i).at(j + 1);
@@ -234,11 +233,12 @@ bool runItteration()
 				count += board->at(i + 1).at(j);
 				count += j < width - 1 && board->at(i + 1).at(j + 1);
 			}
-			//	count += (board->at(i + 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
 			numbers->at(i).at(j) = count;
 			zeros += numbers->at(i).at(j) == 0;
 		}
 	}
+
+	// Elimination of boards with too many "zeros", TODO: figure out math to make it work well with custom values
 
 	if (!custom && zeros > 5)
 	{
@@ -246,6 +246,8 @@ bool runItteration()
 		delete (numbers);
 		return false;
 	}
+
+	// Add extra equation for total mine count if we allow counting
 
 	if (allowCounting)
 	{
@@ -258,6 +260,8 @@ bool runItteration()
 
 	bool change = true;
 	float score = 0;
+
+	// Main solver loop
 
 	while (change)
 	{
@@ -342,6 +346,8 @@ bool runItteration()
 		if (changesThisItteration > 0)
 			score += 1 / float(changesThisItteration);
 	}
+
+	// Elimination of low scoring boards, TODO: something something same math comment once again
 
 	if (!custom && score < 1)
 	{
