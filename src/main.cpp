@@ -8,13 +8,13 @@
 
 using namespace std;
 
-const int width = 8;
-const int height = 10;
-//int width;
-//int height;
-const float mineChance = 0.35;
+int width = 8;
+int height = 10;
+int mineChance = 35;
+bool allowCounting = false;
+bool custom = false;
 
-vector<bitset<width>> *lastBoard = new vector<bitset<width>>(height);
+vector<vector<bool>> *lastBoard = new vector<vector<bool>>(height);
 vector<vector<int>> *lastNumbers = new vector<vector<int>>(height);
 int lastStartX = 0;
 int lastStartY = 0;
@@ -32,6 +32,34 @@ bool ansiCodes = false;
 
 int main()
 {
+	cout << "Defaults: " << to_string(width) << "x" << to_string(height) << " | " << to_string(mineChance) << "% Mine Chance | No Counting | No ANSI Code Coloring (y/n)";
+	string initInput = "";
+	while (initInput.size() == 0 || (initInput[0] != 'y' && initInput[0] != 'n' && initInput[0] != 'Y' && initInput[0] != 'N'))
+	{
+		cin >> initInput;
+	}
+
+	if (initInput[0] == 'n' || initInput[0] == 'N')
+	{
+		custom = true;
+		cout << "Board Width: ";
+		cin >> initInput;
+		width = stoi(initInput);
+		cout << "Board Height: ";
+		cin >> initInput;
+		height = stoi(initInput);
+		cout << "Mine Chance (out of 100): ";
+		cin >> initInput;
+		mineChance = stoi(initInput);
+		cout << "Allow Counting(y/n): ";
+		cin >> initInput;
+		allowCounting = initInput[0] == 'y' || initInput[0] == 'Y';
+		cout << "ANSI Code Coloring(y/n): ";
+		cin >> initInput;
+		ansiCodes = initInput[0] == 'y' || initInput[0] == 'Y';
+		cout << "Chosen Settings: " << to_string(width) << "x" << to_string(height) << " | " << to_string(mineChance) << "% Mine Chance | " << (allowCounting ? "Counting Allowed" : "No Counting") << " | " << (ansiCodes ? "" : "No ") << "ANSI Code Coloring\n\n";
+	}
+
 	srand(time(NULL));
 
 	// for (int i = 0; i < 10; i += runItteration())
@@ -63,7 +91,7 @@ int main()
 					{
 						if (i != lastStartY || j != lastStartX)
 							cout << "||";
-						if (lastBoard->at(i).test(j))
+						if (lastBoard->at(i).at(j))
 						{
 							cout << ":bomb:";
 						}
@@ -151,10 +179,10 @@ void gaussianElimination(vector<vector<int>> *matrix)
 
 bool runItteration()
 {
-	vector<bitset<width>> *board = new vector<bitset<width>>(height);
+	vector<vector<bool>> *board = new vector<vector<bool>>(height, vector<bool>(width));
 	vector<vector<int>> *numbers = new vector<vector<int>>(height);
-	int knownValues[width * height]{};
-	fill(knownValues, knownValues + _countof(knownValues), -1);
+	vector<int> knownValues = vector<int>(width * height, -1); //[width * height]{};
+	// fill(knownValues, knownValues + sizeof(int) * width * height, -1);
 	vector<vector<int>> equations;
 
 	int placedMines = 0;
@@ -166,14 +194,14 @@ bool runItteration()
 	{
 		for (int j = 0; j < width; j++)
 		{
-			if (max(abs(i - startY), abs(j - startX)) <= 1 || rand() % 100 > mineChance * 100)
+			if (max(abs(i - startY), abs(j - startX)) <= 1 || rand() % 100 > mineChance)
 				continue;
-			board->at(i).set(j);
+			board->at(i).at(j) = true;
 			placedMines++;
 		}
 	}
 
-	if (placedMines < 21)
+	if (!custom && placedMines < 21)
 	{
 		delete (board);
 		delete (numbers);
@@ -187,29 +215,50 @@ bool runItteration()
 		numbers->at(i) = vector<int>(width);
 		for (int j = 0; j < width; j++)
 		{
-			bitset<width> mask(0b111);
+			// bitset<width> mask(0b111);
 			int count = 0;
 			if (i > 0)
-				count += (board->at(i - 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
-			count += (board->at(i) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
+			{
+				count += j > 0 && board->at(i - 1).at(j - 1);
+				count += board->at(i - 1).at(j);
+				count += j < width - 1 && board->at(i - 1).at(j + 1);
+			}
+			//	count += (board->at(i - 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
+			//	count += (board->at(i) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
+			count += j > 0 && board->at(i).at(j - 1);
+			count += board->at(i).at(j);
+			count += j < width - 1 && board->at(i).at(j + 1);
 			if (i < height - 1)
-				count += (board->at(i + 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
+			{
+				count += j > 0 && board->at(i + 1).at(j - 1);
+				count += board->at(i + 1).at(j);
+				count += j < width - 1 && board->at(i + 1).at(j + 1);
+			}
+			//	count += (board->at(i + 1) & (j > 0 ? (mask << j - 1) : (mask >> 1))).count();
 			numbers->at(i).at(j) = count;
 			zeros += numbers->at(i).at(j) == 0;
 		}
 	}
 
-	if (zeros > 5)
+	if (!custom && zeros > 5)
 	{
 		delete (board);
 		delete (numbers);
 		return false;
 	}
 
+	if (allowCounting)
+	{
+		vector<int> equation = vector<int>(width * height, 1);
+		equation.push_back(placedMines);
+		equations.push_back(equation);
+	}
+
 	equations.push_back(generateEquation(startX, startY, numbers->at(startY).at(startX)));
 
 	bool change = true;
 	float score = 0;
+
 	while (change)
 	{
 		int changesThisItteration = 0;
@@ -294,21 +343,7 @@ bool runItteration()
 			score += 1 / float(changesThisItteration);
 	}
 
-	// for (int i = 0; i < height; i++)
-	//{
-	//	for (int j = 0; j < width; j++)
-	//	{
-	//		if (knownValues[i * width + j] == 0)
-	//			cout << "\x1b[38;5;28m";
-	//		if (knownValues[i * width + j] == 1)
-	//			cout << "\x1b[38;5;125m";
-	//		cout << char(board->at(i).test(j) ? '*' : '0' + numbers->at(i).at(j));
-	//		cout << "\x1b[0m";
-	//	}
-	//	cout << "\n";
-	// }
-
-	if (score < 1)
+	if (!custom && score < 1)
 	{
 		delete (board);
 		delete (numbers);
@@ -347,7 +382,7 @@ bool runItteration()
 			}
 			else
 			{
-				cout << char(board->at(i).test(j) ? '*' : '0' + numbers->at(i).at(j));
+				cout << char(board->at(i).at(j) ? '*' : '0' + numbers->at(i).at(j));
 			}
 			if (ansiCodes)
 			{
@@ -369,7 +404,7 @@ bool runItteration()
 			{
 				encodedBoard += char(0);
 			}
-			if (board->at(i).test(j))
+			if (board->at(i).at(j))
 			{
 				encodedBoard[(i * width + j) / 4] += 1 << 3 - ((i * width + j) % 4);
 			}
