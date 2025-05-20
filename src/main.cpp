@@ -20,6 +20,9 @@ int lastStartX = 0;
 int lastStartY = 0;
 int lastPlacedMines = 0;
 
+float best = 0;
+bool findingNewBest = false;
+
 vector<int> generateEquation(int x, int y, int value);
 void gaussianElimination(vector<vector<int>> *matrix);
 bool runItteration();
@@ -67,7 +70,7 @@ int main()
 	{
 		while (!runItteration())
 			;
-
+		findingNewBest = false;
 		bool waitingForInput = true;
 		while (waitingForInput)
 		{
@@ -75,6 +78,8 @@ int main()
 			cin >> input;
 			switch (input[0])
 			{
+			case 'b':
+				findingNewBest = true;
 			case 'n':
 				waitingForInput = false;
 				break;
@@ -356,6 +361,13 @@ bool runItteration()
 		return false;
 	}
 
+	if (findingNewBest && score <= best)
+	{
+		delete (board);
+		delete (numbers);
+		return false;
+	}
+
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
@@ -431,5 +443,8 @@ bool runItteration()
 	lastStartX = startX;
 	lastStartY = startY;
 	lastPlacedMines = placedMines;
+
+	best = max(best, score);
+
 	return true;
 }
